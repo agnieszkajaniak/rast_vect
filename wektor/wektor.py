@@ -11,7 +11,7 @@ w = 483000
 s = 623000
 numpoints = 150
 
-
+# funkcja losujaca punkty
 def random_points(w, s, we, sn, numpoints):
     points = np.random.power(5, (numpoints, 2))
     points[:, 0] = points[:, 0] * we + w
@@ -22,11 +22,15 @@ def random_points(w, s, we, sn, numpoints):
 points = random_points(w, s, we, sn, 150)
 print (points[0:10, :])
 
+# Tworzenie ukladu odniesienia i sterownika dla wszystkich plikow
+
 from osgeo import osr
 
 proj = osr.SpatialReference()
 proj.ImportFromEPSG(2180)
 driver = ogr.GetDriverByName("ESRI Shapefile")
+
+# zdefiniowanie pliku punktowego
 
 pointFile = driver.CreateDataSource("punkty.shp")
 pointLayer = pointFile.CreateLayer("layer", proj, ogr.wkbPoint)
@@ -47,11 +51,14 @@ for pt in points:
 
 pointFile = None
 
+# wyznaczenie srodka ciezkosci
+
 mean_x = np.mean(points[:, 0])
 mean_y = np.mean(points[:, 1])
 p_mean = [mean_x, mean_y]
 print(mean_x, mean_y)
 
+# funkcja liczaca odleglosci pomiedzy punktami
 
 def distance(p1, p2):
     x1, y1 = p1
@@ -59,8 +66,7 @@ def distance(p1, p2):
     return np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 
-# def funkcja(p):
-#     return distance(p_mean, p)
+# wyliczenie promienia
 dists = map(lambda p: distance(p_mean, p), points)
 r = np.std(dists)
 print r
@@ -76,15 +82,13 @@ def circle(center, radius):
 
 c = circle(p_mean, r)
 
-
+# zdefiniowanie pliku poligonowego
 
 polyFile = driver.CreateDataSource("poligon.shp")
 polyLayer = polyFile.CreateLayer("layer", proj,ogr.wkbPolygon)
-# Name: string
 polyDef = ogr.FieldDefn("Name", ogr.OFTString)
-polyDef.SetWidth(50) # setWidth dla tekstu
+polyDef.SetWidth(50)
 polyLayer.CreateField(fieldDef)
-# area: real
 fieldDef = ogr.FieldDefn("Area", ogr.OFTReal)
 polyLayer.CreateField(fieldDef)
 
@@ -110,10 +114,13 @@ feature.Destroy()
 
 polyFile = None
 
+# wyznaczenie wskaznikow do punktow skrajnych
+
 minmax = []
 minmax.append([np.argmin(points[:,0]), np.argmax(points[:,0])])
 minmax.append([np.argmin(points[:,1]), np.argmax(points[:,1])])
 
+#zdefiniowanie pliku liniowego
 
 lineFile = driver.CreateDataSource("linie.shp")
 lineLayer = lineFile.CreateLayer("layer", proj,ogr.wkbLineString)

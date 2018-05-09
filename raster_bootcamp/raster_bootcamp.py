@@ -1,6 +1,7 @@
 import os
 from osgeo import gdal
 from os.path import basename, splitext
+import numpy as np
 
 os.chdir(os.path.join(os.path.expanduser("~"), "Documents", "pg", "raster_bootcamp", "dist"))
 lista = os.listdir(".")
@@ -13,6 +14,7 @@ class rast:
         for r in lista:
             raster = gdal.Open(r)
             self.rasters.append(raster)
+            print r
             print (raster == None)
             self.metadata.append(self._getMetadata(raster))
             self.temp = raster.GetRasterBand(1).ReadAsArray()
@@ -39,10 +41,9 @@ class rast:
 
     def _getLines(self, row):
         self.__data = np.empty([len(self.rasters), self.size[0]])
-        for ptr in self.rasters:
-            p = ptr.GetRasterBands(1).readAsArray(0, row, self.size[0], 1)
-            for i in range(len(rasters)):
-                self.__data[i] = p
+        for i, ptr in enumerate(self.rasters):
+            p = ptr.GetRasterBand(1).ReadAsArray(0, row, self.size[0], 1)
+            self.__data[i] = p
 
     def _calc(self, expression):
         dct = dict(zip(self.names, self.__data))
@@ -54,7 +55,7 @@ class rast:
     def _calculator(self, expression):
         cols, rows = self.size
         driver = gdal.GetDriverByName("GTiff")
-        target = driver.Create("result.tif", cols, rows, 1, gdal.GDT_Byte)
+        target = driver.Create("../result.tif", cols, rows, 1, gdal.GDT_Byte)
         target.SetProjection(self.projection)
         target.SetGeoTransform(self.geoTransform)
         noData = 255

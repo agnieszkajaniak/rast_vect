@@ -14,10 +14,13 @@ class rast:
         for r in lista:
             raster = gdal.Open(r)
             self.rasters.append(raster)
-            print r
-            print (raster == None)
+            if raster == None:
+                raise Exception("To nie jest plik rastrowy /%s" % raster)
             self.metadata.append(self._getMetadata(raster))
-            self.temp = raster.GetRasterBand(1).ReadAsArray()
+        l = (len(self.metadata)) - 1
+        for i in range(l):
+            if self.metadata[0] != self.metadata[i+1]:
+                raise Exception("Niezgodne rastry")
         self.names = self._getNames(*lista)
         self.result = np.zeros(self.size[0])
         self.result.shape = (1, self.size[0])
@@ -50,7 +53,12 @@ class rast:
         self.result[0] = eval(expression, dct)
 
     def _summary(self):
-        print("Name:{0:s}\n".format(self.names))
+        name = "Name:{0:s}\n".format(self.names)
+        size = "Size:{0:s}\n".format(self.size)
+        proj = "Projection:{0:s}\n".format(self.projection)
+        res = "Resolution:{0:s}\n".format(self.resolution)
+        ext = "Extent:{0:s}\n".format(self.extent)
+        print(name + size + proj + res + ext)
 
     def _calculator(self, expression):
         cols, rows = self.size
@@ -61,11 +69,16 @@ class rast:
         noData = -1
         tband = target.GetRasterBand(1)
         tband.SetNoDataValue(noData)
-        for row in range(rows):
-            self._getLines(row)
-            self._calc(expression)
-            tband.WriteArray(self.result, 0, row)
+        try:
+            for row in range(rows):
+                self._getLines(row)
+                self._calc(expression)
+                tband.WriteArray(self.result, 0, row)
+        except:
+            print("Niepoprawne wyrazenie")
+            pass
         tband.FlushCache()
         tband.ComputeStatistics(True)
         del tband
         target = None
+

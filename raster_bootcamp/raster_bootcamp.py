@@ -6,17 +6,20 @@ import numpy as np
 os.chdir(os.path.join(os.path.expanduser("~"), "Documents", "pg", "raster_bootcamp", "dist"))
 lista = os.listdir(".")
 
-
+# tworzenie klasy rast
 class rast:
     def __init__(self, *lista):
         self.rasters = []
         self.metadata = []
+        # otwarcie rastrow i ich zapis do listy
+        # zapisanie do listy metadanych
         for r in lista:
             raster = gdal.Open(r)
             self.rasters.append(raster)
             if raster == None:
                 raise Exception("To nie jest plik rastrowy /%s" % raster)
             self.metadata.append(self._getMetadata(raster))
+        # sprawdzanie zgodnosci metadanych
         l = (len(self.metadata)) - 1
         for i in range(l):
             if self.metadata[0] != self.metadata[i+1]:
@@ -26,7 +29,7 @@ class rast:
         self.result.shape = (1, self.size[0])
         self._summary()
         self._calculator
-
+# funkcja pobierajaca metadane
     def _getMetadata(self, raster):
         self.geoTransform = raster.GetGeoTransform()
         self.size = (raster.RasterXSize, raster.RasterYSize)
@@ -39,19 +42,23 @@ class rast:
         self.extent = (minX, maxX, minY, maxY)
         return (self.size, self.projection, self.resolution, self.extent)
 
+# funckja pobierajaca nazwy rastrow
     def _getNames(self, *lista):
         return ([basename(splitext(raster)[0]) for raster in lista])
 
+# wczytywanie linia po linii
     def _getLines(self, row):
         self.__data = np.empty([len(self.rasters), self.size[0]])
         for i, ptr in enumerate(self.rasters):
             p = ptr.GetRasterBand(1).ReadAsArray(0, row, self.size[0], 1)
             self.__data[i] = p
 
+# funkcja realizujaca wyrazenie
     def _calc(self, expression):
         dct = dict(zip(self.names, self.__data))
         self.result[0] = eval(expression, dct)
 
+# funkcja wyswietlajaca podsumowanie
     def _summary(self):
         name = "Name:{0:s}\n".format(self.names)
         size = "Size:{0:s}\n".format(self.size)
@@ -60,6 +67,7 @@ class rast:
         ext = "Extent:{0:s}\n".format(self.extent)
         print(name + size + proj + res + ext)
 
+# kalkulator rastow
     def _calculator(self, expression):
         cols, rows = self.size
         driver = gdal.GetDriverByName("GTiff")
@@ -82,3 +90,4 @@ class rast:
         del tband
         target = None
 
+# projekt wykonany przez Martyne Walicka, Agnieszke Janiak i Milosza Rumianowskiego

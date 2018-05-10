@@ -55,10 +55,10 @@ class rast:
     def _calculator(self, expression):
         cols, rows = self.size
         driver = gdal.GetDriverByName("GTiff")
-        target = driver.Create("../result.tif", cols, rows, 1, gdal.GDT_Byte)
+        target = driver.Create("../result.tif", cols, rows, 1, gdal.GDT_Float32)
         target.SetProjection(self.projection)
         target.SetGeoTransform(self.geoTransform)
-        noData = 255
+        noData = -1
         tband = target.GetRasterBand(1)
         tband.SetNoDataValue(noData)
         for row in range(rows):

@@ -12,16 +12,16 @@ class vect():
     def __init__(self, pointfile):
         self.vector = ogr.Open(pointfile, 0)
         self.layer = self.vector.GetLayer()
-        nfeatures = self.layer.GetFeatureCount()
-        projection = self.layer.GetSpatialRef()
+        self.ext = self.layer.GetExtent()
+        self.nfeatures = self.layer.GetFeatureCount()
+        self.projection = self.layer.GetSpatialRef()
         defn = self.layer.GetLayerDefn()
         nfields = defn.GetFieldCount()
         print self.layer.GetGeomType() == ogr.wkbPoint
 
         fnames = [defn.GetFieldDefn(i).GetName() for i in range(nfields)]
         types = [defn.GetFieldDefn(i).GetTypeName() for i in range(nfields)]
-        fields = dict(zip(fnames, types))
-        fields  # w formie dict
+        self.fields = dict(zip(fnames, types))
 
         self.layer.ResetReading()
         attrs = []
@@ -88,42 +88,37 @@ class vect():
             polyFile = None
 
     def copyFile(self, filename, mdd):
-        shops = ogr.Open(pointfile)
-        shape = shops.GetLayer(0)
-        feature = shape.GetFeature(0)
-        mem_driver = ogr.GetDriverByName('MEMORY')
-        source = mem_driver.CreateDataSource('memData')  # poinfile
-        mem = source.CopyLayer(shape, 'sklepy')  # pointlayer
-        tmp = mem_driver.Open('memData', 0)  # 1 oznacza opening for writing, 0 oznacza opening for reading
+        src = ogr.Open(pointfile, 0)
+        layer = src.GetLayerByIndex(0)
+        driver = ogr.GetDriverByName('ESRI Shapefile')
+        ds = driver.CreateDataSource(filename)
+        dest_layer = ds.CreateLayer('layer1',
+                                    srs=layer.GetSpatialRef(),
+                                    geom_type=layer.GetLayerDefn().GetGeomType())
+        feature = layer.GetFeature(0)
+        [dest_layer.CreateField(feature.GetFieldDefnRef(i)) for i in range(feature.GetFieldCount())]
 
-        # tworzenie nowego i zapisanie do niego tego z pamieci
-        proj = osr.SpatialReference()
-        proj.ImportFromEPSG(2180)
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-
-        pointFile = driver.CreateDataSource(filename)
-        pointLayer = pointFile.CreateLayer("layer", proj, ogr.wkbPoint)
 
         medoid = ogr.FieldDefn("Medoid", ogr.OFTInteger)  # utworzenie nowej kolumny
-        pointLayer.CreateField(medoid)
+        dest_layer.CreateField(medoid)
 
         for pt in self.arr_points:
-            feature1 = ogr.Feature(shape.GetLayerDefn())  # 1
+            feature1 = ogr.Feature(dest_layer.GetLayerDefn())  # 1
             point = ogr.Geometry(ogr.wkbPoint)  # 2
             point.AddPoint(pt[0], pt[1])  # 2
             feature1.SetGeometry(point)  # 2
-            pointLayer.CreateFeature(feature1)  # 4
+            dest_layer.CreateFeature(feature1)  # 4
             feature1 = None
 
-        for i in range(len(pointLayer)):
+        for i in range(len(dest_layer)):
             if i == mdd:
-                feature = ogr.Feature(pointLayer.GetLayerDefn())
+                feature = ogr.Feature(dest_layer.GetLayerDefn())
                 feature.SetField("Medoid", 1)
-                pointLayer.CreateFeature(feature)
+                dest_layer.CreateFeature(feature)
             else:
-                feature = ogr.Feature(pointLayer.GetLayerDefn())
+                feature = ogr.Feature(dest_layer.GetLayerDefn())
                 feature.SetField("Medoid", 0)
-                pointLayer.CreateFeature(feature)
+                dest_layer.CreateFeature(feature)
             feature = None
 
 
@@ -172,5 +167,12 @@ class vect():
             result.append(temp)
         result = np.array(result)
         self.createFile(type='line', line_data=result)
+
+    def summary(self):
+        self.extent = "Extent:\t{0:s}\n".format(self.ext)
+        self.project = "Projection:\t{0:s}\n".format(self.projection.ExportToMICoordSys())
+        self.filed = "Fields:\t{0:s}\n".format(self.fields)
+        self.nf = "Number of object:\t{0:n}\n".format(self.nfeatures)
+        print(self.extent + self.project + self.filed + self.nf)
 
 v = vect(pointfile)

@@ -10,23 +10,23 @@ pointfile = os.path.join(path, "sklepy.shp")
 
 class vect():
     def __init__(self, pointfile):
-        vector = ogr.Open(pointfile, 0)
-        layer = vector.GetLayer()
-        nfeatures = layer.GetFeatureCount()
-        projection = layer.GetSpatialRef()
-        defn = layer.GetLayerDefn()
+        self.vector = ogr.Open(pointfile, 0)
+        self.layer = self.vector.GetLayer()
+        nfeatures = self.layer.GetFeatureCount()
+        projection = self.layer.GetSpatialRef()
+        defn = self.layer.GetLayerDefn()
         nfields = defn.GetFieldCount()
-        print layer.GetGeomType() == ogr.wkbPoint
+        print self.layer.GetGeomType() == ogr.wkbPoint
 
         fnames = [defn.GetFieldDefn(i).GetName() for i in range(nfields)]
         types = [defn.GetFieldDefn(i).GetTypeName() for i in range(nfields)]
         fields = dict(zip(fnames, types))
         fields  # w formie dict
 
-        layer.ResetReading()
+        self.layer.ResetReading()
         attrs = []
         points = []
-        for f in layer:  # f - feature
+        for f in self.layer:  # f - feature
             attrs.append([f.GetField(i) for i in range(nfields)])
             points.append(f.GetGeometryRef().GetPoint())
 
@@ -85,6 +85,48 @@ class vect():
             feature.Destroy()
             polyFile = None
 
+    def medoid(self, filename):
+        shops = ogr.Open(pointfile)
+        shape = shops.GetLayer(0)
+        feature = shape.GetFeature(0)
+        mem_driver = ogr.GetDriverByName('MEMORY')
+        source = mem_driver.CreateDataSource('memData')  # poinfile
+        mem = source.CopyLayer(shape, 'sklepy')  # pointlayer
+        tmp = mem_driver.Open('memData', 0)  # 1 oznacza opening for writing, 0 oznacza opening for reading
+
+        # tworzenie nowego i zapisanie do niego tego z pamieci
+        proj = osr.SpatialReference()
+        proj.ImportFromEPSG(2180)
+        driver = ogr.GetDriverByName("ESRI Shapefile")
+
+        pointFile = driver.CreateDataSource(filename)
+        pointLayer = pointFile.CreateLayer("layer", proj, ogr.wkbPoint)
+
+        for pt in self.arr_points:
+            feature1 = ogr.Feature(shape.GetLayerDefn())  # 1
+            point = ogr.Geometry(ogr.wkbPoint)  # 2
+            point.AddPoint(pt[0], pt[1])  # 2
+            feature1.SetGeometry(point)  # 2
+            pointLayer.CreateFeature(feature1)  # 4
+            feature1 = None
+
+
+        med = np.argmin(self.dm.sum(axis=1))  # to find medoid ID
+        medoid = ogr.FieldDefn("Medoid", ogr.OFTInteger)  # utworzenie nowej kolumny
+        pointLayer.CreateField(medoid)
+        for i in range(len(pointLayer)):
+            if i == med:
+                feature = ogr.Feature(pointLayer.GetLayerDefn())
+                feature.SetField("Medoid", 1)
+                pointLayer.CreateFeature(feature)
+            else:
+                feature = ogr.Feature(pointLayer.GetLayerDefn())
+                feature.SetField("Medoid", 0)
+                pointLayer.CreateFeature(feature)
+            feature = None
+
+        pointFile = None
+
     def centeroid(self, name):
         self.name = name
         mean_x = np.mean(self.arr_points[:, 0])
@@ -97,20 +139,9 @@ class vect():
         result = np.array(result)
         self.createFile(type='point', filename = self.name, points_data=result)
 
-    def medoid(name):
-        ajdi = np.argmin(data.sum(axis=1))  # to find medoid ID
-        medoid = ogr.FieldDefn("Medoid", ogr.OFTInteger)  # utworzenie nowej kolumny
-        layer.CreateField(medoid)
-        for i in range(len(layer)):
-            if i == ajdi:
-                feature = ogr.Feature(layer.GetLayerDefn())
-                feature.SetField("Medoid", 1)
-                layer.CreateFeature(feature)
-            else:
-                feature = ogr.Feature(layer.GetLayerDefn())
-                feature.SetField("Medoid", 0)
-                layer.CreateFeature(feature)
-            feature = None
+    def medoid(self, name):
+        self.name = name
+
 
     def conhul(bufdist):
         pointfile = os.path.join(path, namefile)

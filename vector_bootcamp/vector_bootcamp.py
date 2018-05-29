@@ -34,6 +34,8 @@ class vect():
         self.arr_points = self.arr_points[:, 0:2]
         self.dm = distance_matrix(self.arr_points, self.arr_points)
 
+        self.vector = None
+
     def createFile(self, type, filename, points_data=None, line_data=None, polygon_data=None):
         proj = osr.SpatialReference()
         proj.ImportFromEPSG(2180)
@@ -85,7 +87,7 @@ class vect():
             feature.Destroy()
             polyFile = None
 
-    def medoid(self, filename):
+    def copyFile(self, filename, mdd):
         shops = ogr.Open(pointfile)
         shape = shops.GetLayer(0)
         feature = shape.GetFeature(0)
@@ -102,6 +104,9 @@ class vect():
         pointFile = driver.CreateDataSource(filename)
         pointLayer = pointFile.CreateLayer("layer", proj, ogr.wkbPoint)
 
+        medoid = ogr.FieldDefn("Medoid", ogr.OFTInteger)  # utworzenie nowej kolumny
+        pointLayer.CreateField(medoid)
+
         for pt in self.arr_points:
             feature1 = ogr.Feature(shape.GetLayerDefn())  # 1
             point = ogr.Geometry(ogr.wkbPoint)  # 2
@@ -110,12 +115,8 @@ class vect():
             pointLayer.CreateFeature(feature1)  # 4
             feature1 = None
 
-
-        med = np.argmin(self.dm.sum(axis=1))  # to find medoid ID
-        medoid = ogr.FieldDefn("Medoid", ogr.OFTInteger)  # utworzenie nowej kolumny
-        pointLayer.CreateField(medoid)
         for i in range(len(pointLayer)):
-            if i == med:
+            if i == mdd:
                 feature = ogr.Feature(pointLayer.GetLayerDefn())
                 feature.SetField("Medoid", 1)
                 pointLayer.CreateFeature(feature)
@@ -125,7 +126,15 @@ class vect():
                 pointLayer.CreateFeature(feature)
             feature = None
 
+
         pointFile = None
+
+    def medoid(self, name):
+        self.name = name
+        med = np.argmin(self.dm.sum(axis=1))  # to find medoid ID
+        self.copyFile(filename = self.name, mdd = med)
+
+
 
     def centeroid(self, name):
         self.name = name
@@ -138,9 +147,6 @@ class vect():
         result.append(temp)
         result = np.array(result)
         self.createFile(type='point', filename = self.name, points_data=result)
-
-    def medoid(self, name):
-        self.name = name
 
 
     def conhul(bufdist):
